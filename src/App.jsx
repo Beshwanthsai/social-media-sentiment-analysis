@@ -1,0 +1,154 @@
+import React, { useState, useEffect } from 'react'
+import { analyzeSentiment, loadDataset } from './lexicon'
+import './App.css'
+
+export default function App() {
+  const [text, setText] = useState('')
+  const [results, setResults] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [datasetLoaded, setDatasetLoaded] = useState(false)
+
+  const loadResults = () => {
+    const data = localStorage.getItem('sentiments')
+    return data ? JSON.parse(data) : []
+  }
+
+  const saveResults = (data) => {
+    localStorage.setItem('sentiments', JSON.stringify(data))
+  }
+
+  useEffect(() => {
+    setResults(loadResults())
+    
+    // Load the Kaggle dataset on app start
+    loadDataset().then(() => {
+      setDatasetLoaded(true)
+    })
+  }, [])
+
+  const handleAnalyze = () => {
+    if (!text.trim()) return
+
+    setLoading(true)
+    setTimeout(() => {
+      const analysis = analyzeSentiment(text)
+
+      const newResult = {
+        id: Date.now(),
+        text: text.trim(),
+        sentiment: analysis.sentiment,
+        score: analysis.score,
+        strength: analysis.strength,
+        wordCount: analysis.wordCount,
+        sentimentWords: analysis.sentimentWords,
+        timestamp: new Date().toLocaleString()
+      }
+
+      const updated = [newResult, ...results]
+      setResults(updated)
+      saveResults(updated)
+      setText('')
+      setLoading(false)
+    }, 300)
+  }
+
+  const handleDelete = (id) => {
+    const updated = results.filter(r => r.id !== id)
+    setResults(updated)
+    saveResults(updated)
+  }
+
+  const handleClear = () => {
+    if (window.confirm('Clear all?')) {
+      setResults([])
+      saveResults([])
+    }
+  }
+
+  const stats = {
+    total: results.length,
+    positive: results.filter(r => r.sentiment === 'positive').length,
+    negative: results.filter(r => r.sentiment === 'negative').length,
+    neutral: results.filter(r => r.sentiment === 'neutral').length,
+    avg: results.length > 0 ? (results.reduce((s, r) => s + r.score, 0) / results.length * 100).toFixed(0) : 0
+  }
+
+  return (
+    <div className="app">
+      <header className="header">
+        <h1>Sentiment Analyzer</h1>
+        <p>Analyze sentiment using ML</p>
+      </header>
+
+      <main className="container">
+        <div className="left">
+          <div className="input-box">
+            <textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Enter text to analyze..."
+              rows="6"
+              disabled={loading || !datasetLoaded}
+            />
+            <button onClick={handleAnalyze} disabled={loading || !text.trim() || !datasetLoaded}>
+              {loading ? 'Analyzing...' : !datasetLoaded ? 'Loading Dataset...' : 'Analyze'}
+            </button>
+          </div>
+
+          {results.length === 0 ? (
+            <div className="empty">No analyses yet</div>
+          ) : (
+            <div className="results">
+              {results.map(r => (
+                <div key={r.id} className={`result ${r.sentiment}`}>
+                  <div className="result-header">
+                    <span className={`label ${r.sentiment}`}>{r.sentiment.toUpperCase()}</span>
+                    <span className="time">{r.timestamp}</span>
+                    <button className="delete-btn" onClick={() => handleDelete(r.id)}>×</button>
+                  </div>
+                  <p className="text">{r.text}</p>
+                  <div className="result-footer">
+                    <div className="score">Score: {(r.score * 100).toFixed(0)}%</div>
+                    <div className="strength">Strength: {(r.strength * 100).toFixed(0)}%</div>
+                    {r.sentimentWords && r.sentimentWords.length > 0 && (
+                      <div className="keywords">Keywords: {r.sentimentWords.slice(0, 3).join(', ')}</div>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {results.length > 0 && (
+                <button className="clear-btn" onClick={handleClear}>Clear All</button>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="right">
+          <div className="stats-box">
+            <h3>Statistics</h3>
+            <div className="stat">
+              <span>Total</span>
+              <span className="number">{stats.total}</span>
+            </div>
+            <div className="stat">
+              <span>Positive</span>
+              <span className="number positive">{stats.positive}</span>
+            </div>
+            <div className="stat">
+              <span>Negative</span>
+              <span className="number negative">{stats.negative}</span>
+            </div>
+            <div className="stat">
+              <span>Neutral</span>
+              <span className="number neutral">{stats.neutral}</span>
+            </div>
+            <div className="stat avg">
+              <span>Average Score</span>
+              <span className="number">{stats.avg}%</span>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}

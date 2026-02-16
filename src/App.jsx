@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { analyzeSentiment, loadDataset } from './lexicon'
+import { analyzeSentimentBERT, loadBERTModel, isBERTReady } from './bertAnalyzer'
 import './App.css'
 
 export default function App() {
   const [text, setText] = useState('')
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
-  const [datasetLoaded, setDatasetLoaded] = useState(false)
+  const [modelReady, setModelReady] = useState(false)
 
   const loadResults = () => {
     const data = localStorage.getItem('sentiments')
@@ -20,18 +20,18 @@ export default function App() {
   useEffect(() => {
     setResults(loadResults())
     
-    // Load the Kaggle dataset on app start
-    loadDataset().then(() => {
-      setDatasetLoaded(true)
+    // Load BERT model on app start
+    loadBERTModel().then(() => {
+      setModelReady(true)
     })
   }, [])
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     if (!text.trim()) return
 
     setLoading(true)
-    setTimeout(() => {
-      const analysis = analyzeSentiment(text)
+    try {
+      const analysis = await analyzeSentimentBERT(text)
 
       const newResult = {
         id: Date.now(),
@@ -41,6 +41,8 @@ export default function App() {
         strength: analysis.strength,
         wordCount: analysis.wordCount,
         sentimentWords: analysis.sentimentWords,
+        model: analysis.model,
+        confidence: analysis.confidence,
         timestamp: new Date().toLocaleString()
       }
 
@@ -49,7 +51,10 @@ export default function App() {
       saveResults(updated)
       setText('')
       setLoading(false)
-    }, 300)
+    } catch (error) {
+      console.error('Analysis error:', error)
+      setLoading(false)
+    }
   }
 
   const handleDelete = (id) => {
@@ -88,10 +93,10 @@ export default function App() {
               onChange={(e) => setText(e.target.value)}
               placeholder="Enter text to analyze..."
               rows="6"
-              disabled={loading || !datasetLoaded}
+              disabled={loading || !modelReady}
             />
-            <button onClick={handleAnalyze} disabled={loading || !text.trim() || !datasetLoaded}>
-              {loading ? 'Analyzing...' : !datasetLoaded ? 'Loading Dataset...' : 'Analyze'}
+            <button onClick={handleAnalyze} disabled={loading || !text.trim() || !modelReady}>
+              {loading ? 'Analyzing with BERT...' : !modelReady ? 'Loading BERT Model...' : 'Analyze'}
             </button>
           </div>
 
@@ -110,6 +115,8 @@ export default function App() {
                   <div className="result-footer">
                     <div className="score">Score: {(r.score * 100).toFixed(0)}%</div>
                     <div className="strength">Strength: {(r.strength * 100).toFixed(0)}%</div>
+                    {r.confidence && <div className="confidence">Confidence: {(r.confidence * 100).toFixed(1)}%</div>}
+                    {r.model && <div className="model">Model: {r.model}</div>}
                     {r.sentimentWords && r.sentimentWords.length > 0 && (
                       <div className="keywords">Keywords: {r.sentimentWords.slice(0, 3).join(', ')}</div>
                     )}

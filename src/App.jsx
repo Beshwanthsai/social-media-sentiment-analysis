@@ -83,6 +83,11 @@ export default function App() {
       <header className="header">
         <h1>Sentiment Analyzer</h1>
         <p>Analyze sentiment using ML</p>
+        {!modelReady && (
+          <div className="model-loading">
+            🔄 Loading BERT Model... (First time takes 30-60 seconds)
+          </div>
+        )}
       </header>
 
       <main className="container">

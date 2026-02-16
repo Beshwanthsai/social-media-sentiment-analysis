@@ -1,12 +1,22 @@
 import { pipeline } from '@xenova/transformers'
 
 let classifier = null
+let isLoading = false
 let isLoaded = false
 
-// Initialize BERT sentiment classifier
-export const loadBERTModel = async () => {
+// Lazy load BERT sentiment classifier (only when first needed)
+const ensureBERTLoaded = async () => {
   if (isLoaded) return Promise.resolve()
+  if (isLoading) return new Promise(resolve => {
+    const checkInterval = setInterval(() => {
+      if (isLoaded) {
+        clearInterval(checkInterval)
+        resolve()
+      }
+    }, 100)
+  })
 
+  isLoading = true
   return new Promise((resolve) => {
     try {
       console.log('🤖 Loading BERT sentiment classifier...')
@@ -16,18 +26,26 @@ export const loadBERTModel = async () => {
         .then((pipe) => {
           classifier = pipe
           isLoaded = true
+          isLoading = false
           console.log('✓ BERT model loaded successfully')
           resolve()
         })
         .catch((error) => {
           console.error('Error loading BERT model:', error)
+          isLoading = false
           resolve() // Resolve even on error to continue app
         })
     } catch (error) {
       console.error('Error initializing BERT:', error)
+      isLoading = false
       resolve()
     }
   })
+}
+
+// Legacy function - not used in lazy loading
+export const loadBERTModel = async () => {
+  return ensureBERTLoaded()
 }
 
 // Analyze sentiment using BERT
@@ -43,15 +61,18 @@ export const analyzeSentimentBERT = async (text) => {
     }
   }
 
+  // Lazy load BERT model on first analysis
+  await ensureBERTLoaded()
+
   if (!isLoaded || !classifier) {
-    console.warn('BERT model not loaded yet')
+    console.warn('BERT model failed to load')
     return {
       sentiment: 'neutral',
       score: 0.5,
       strength: 0,
       wordCount: 0,
       sentimentWords: [],
-      model: 'BERT (loading...)'
+      model: 'BERT (unavailable)'
     }
   }
 

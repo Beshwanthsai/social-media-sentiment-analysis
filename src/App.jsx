@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import { analyzeSentimentBERT, loadBERTModel, isBERTReady } from './bertAnalyzer'
+import { analyzeSentimentBERT } from './bertAnalyzer'
 import './App.css'
 
 export default function App() {
   const [text, setText] = useState('')
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
-  const [modelReady, setModelReady] = useState(false)
 
   const loadResults = () => {
     const data = localStorage.getItem('sentiments')
@@ -19,11 +18,6 @@ export default function App() {
 
   useEffect(() => {
     setResults(loadResults())
-    
-    // Load BERT model on app start
-    loadBERTModel().then(() => {
-      setModelReady(true)
-    })
   }, [])
 
   const handleAnalyze = async () => {
@@ -82,12 +76,7 @@ export default function App() {
     <div className="app">
       <header className="header">
         <h1>Sentiment Analyzer</h1>
-        <p>Analyze sentiment using ML</p>
-        {!modelReady && (
-          <div className="model-loading">
-            🔄 Loading BERT Model... (First time takes 30-60 seconds)
-          </div>
-        )}
+        <p>Analyze sentiment using ML (BERT)</p>
       </header>
 
       <main className="container">
@@ -98,10 +87,10 @@ export default function App() {
               onChange={(e) => setText(e.target.value)}
               placeholder="Enter text to analyze..."
               rows="6"
-              disabled={loading || !modelReady}
+              disabled={loading}
             />
-            <button onClick={handleAnalyze} disabled={loading || !text.trim() || !modelReady}>
-              {loading ? 'Analyzing with BERT...' : !modelReady ? 'Loading BERT Model...' : 'Analyze'}
+            <button onClick={handleAnalyze} disabled={loading || !text.trim()}>
+              {loading ? 'Analyzing...' : 'Analyze'}
             </button>
           </div>
 

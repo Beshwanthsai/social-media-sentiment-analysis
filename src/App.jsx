@@ -7,17 +7,9 @@ export default function App() {
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(false)
 
-  const loadResults = () => {
-    const data = localStorage.getItem('sentiments')
-    return data ? JSON.parse(data) : []
-  }
-
-  const saveResults = (data) => {
-    localStorage.setItem('sentiments', JSON.stringify(data))
-  }
-
   useEffect(() => {
-    setResults(loadResults())
+    const data = localStorage.getItem('sentiments')
+    setResults(data ? JSON.parse(data) : [])
   }, [])
 
   const handleAnalyze = async () => {
@@ -33,20 +25,18 @@ export default function App() {
         sentiment: analysis.sentiment,
         score: analysis.score,
         strength: analysis.strength,
-        wordCount: analysis.wordCount,
         sentimentWords: analysis.sentimentWords,
-        model: analysis.model,
         confidence: analysis.confidence,
         timestamp: new Date().toLocaleString()
       }
 
       const updated = [newResult, ...results]
       setResults(updated)
-      saveResults(updated)
+      localStorage.setItem('sentiments', JSON.stringify(updated))
       setText('')
-      setLoading(false)
     } catch (error) {
       console.error('Analysis error:', error)
+    } finally {
       setLoading(false)
     }
   }
@@ -54,13 +44,13 @@ export default function App() {
   const handleDelete = (id) => {
     const updated = results.filter(r => r.id !== id)
     setResults(updated)
-    saveResults(updated)
+    localStorage.setItem('sentiments', JSON.stringify(updated))
   }
 
   const handleClear = () => {
     if (window.confirm('Clear all?')) {
       setResults([])
-      saveResults([])
+      localStorage.setItem('sentiments', JSON.stringify([]))
     }
   }
 
@@ -110,7 +100,6 @@ export default function App() {
                     <div className="score">Score: {(r.score * 100).toFixed(0)}%</div>
                     <div className="strength">Strength: {(r.strength * 100).toFixed(0)}%</div>
                     {r.confidence && <div className="confidence">Confidence: {(r.confidence * 100).toFixed(1)}%</div>}
-                    {r.model && <div className="model">Model: {r.model}</div>}
                     {r.sentimentWords && r.sentimentWords.length > 0 && (
                       <div className="keywords">Keywords: {r.sentimentWords.slice(0, 3).join(', ')}</div>
                     )}
